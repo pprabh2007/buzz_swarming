@@ -13,7 +13,7 @@ argos3 -c <argos_file_name_with_extension>
 
 Make sure the number of bots in both the files are equal.
 
-#### NOTE: If the part of your Buzz libraries is different, please make corresponding changes to the include statement ####
+#### NOTE: If the path to your Buzz libraries is different, please make the corresponding changes in the include statement ####
 
 
 #### For more details, please go through the StartUp_Guide Document ####
