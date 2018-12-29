@@ -1,0 +1,382 @@
+include "/usr/local/share/buzz/include/vec2.bzz"
+include "/usr/local/share/buzz/include/string.bzz"
+
+E_NEIGH=250000
+E_ANTINEIGH=25
+TARGET_NEIGH=25
+TARGET_ANTINEIGH=250
+
+
+ROBOTS=8
+CBOTS=103
+DIST=104
+BOT_LIMIT=100
+SWARMS=4
+
+function f_mag_neigh(rid, data) {
+	
+	var mag=-(E_NEIGH / data.distance) * ((TARGET_NEIGH / data.distance)^4 - (TARGET_NEIGH / data.distance)^2)
+
+	return math.vec2.newp(mag, data.azimuth)
+}
+
+function f_mag_antineigh(rid, data) {
+	var mag= -(E_ANTINEIGH / data.distance) * ((TARGET_ANTINEIGH / data.distance)^4 - (TARGET_ANTINEIGH / data.distance)^2)
+
+	return math.vec2.newp(mag, data.azimuth)	
+}
+
+function v_sum(rid, data, accum) {
+	return math.vec2.add(accum, data)
+}
+
+function  move_bots(){
+
+		
+		var f_neigh=neighbors.kin().map(f_mag_neigh).reduce(v_sum, math.vec2.new(0.0, 0.0))
+		var f_antineigh=neighbors.nonkin().map(f_mag_antineigh).reduce(v_sum, math.vec2.new(0.0, 0.0))
+		
+		
+
+		var sum=math.vec2.add(f_neigh, f_antineigh)
+
+		var tot_count=neighbors.kin().count()+neighbors.nonkin().count()
+		if(tot_count>1) {
+			math.vec2.scale(sum, 1.0/tot_count)
+
+		}	
+	
+		
+		goto(sum.x, sum.y)
+		
+
+		##log(string.concat(string.tostring(id), ": x=", string.tostring(sum.x), " y=", string.tostring(sum.y)   ))
+
+}
+
+function stage_4(){
+	
+	iteration2=iteration2+1
+	if(iteration2<200) {
+		s1.exec(move_bots)
+		s2.exec(move_bots)
+	}
+	else
+	{
+		iteration2=0
+		statef=init_stage_1
+	}
+
+}
+
+function stage_3() {
+	
+	#log(string.concat(string.tostring(id), " is in swarm 1: ", string.tostring(s1.in()) )  )
+	#log(string.concat(string.tostring(id), " is in swarm 2: ", string.tostring(s2.in()) )  )
+
+	s2.leave()
+	s2.select(s1.in() and mydist<=dist_bots.get("median"))
+
+	
+	s3.leave()
+	s3.select(s1.in() and mydist>dist_bots.get("median"))
+
+	s1.leave()
+	s1.select(s3.in())
+
+	s3.leave()
+
+	#log(string.concat(string.tostring(id), " is in swarm 1: ", string.tostring(s1.in()) )  )
+	#log(string.concat(string.tostring(id), " is in swarm 2: ", string.tostring(s2.in()) )  )
+
+	#log(mydist)
+	#log(median)
+
+	statef=stage_4	
+
+}
+
+function find_median() {	
+			
+	
+	if(dist_bots["median"]==nil) {
+		arr={}			
+		i=0
+		k=0
+		while(i<ROBOTS) {
+
+			if(dist_bots.get(i)!=nil) {
+
+				arr[k]=string.concat(  string.tostring(i)  , "-" ,  string.tostring(dist_bots.get(i))  )
+				k=k+1
+			}
+
+			i=i+1
+		}
+
+
+		##log("UNSORTED")
+		#i=0
+		#while(i<k){
+		#		#log(arr[i])				
+		#		i=i+1
+		#	}
+
+
+		i=0
+		while(i<k) {
+			j=i+1
+			pos=i
+			
+			temp_1=string.split(arr[i], "-")
+			temp_1=string.tofloat(temp_1[1])
+
+			while(j<k) {
+
+
+				temp_2=string.split(arr[j], "-")
+				temp_2=string.tofloat(temp_2[1])
+
+				if(temp_2<temp_1) {
+					temp_1=temp_2
+					pos=j
+				}
+
+
+				j=j+1
+			}
+
+
+			temp_1=arr[pos]
+			arr[pos]=arr[i]
+			arr[i]=temp_1
+
+			i=i+1
+		}
+
+		#i=0
+		##log("SORTED")
+		#while(i<k){
+		#		
+		#		#log(arr[i])				
+		#		i=i+1
+		#	}
+
+		median=string.split(arr[(ROBOTS/SWARMS)-1], "-")
+		median=string.tofloat(median[1])
+		dist_bots.put("median", median)
+	}
+
+
+}
+
+function find_median_faster(){
+	
+	
+
+}
+
+function add_listeners() {
+	
+	neighbors.listen("dist_to_source", function(valueid, value, rid) {
+				
+				if(s1.in()) {
+					mydist=math.min(mydist, value + neighbors.get(rid).distance)
+					#debug.print(mydist)
+				}
+			})
+
+}
+
+function stage_2() {
+	
+
+		iteration=iteration+1
+		#debug.print(string.concat(string.tostring(mydist), " ", string.tostring(source)))
+		neighbors.broadcast("dist_to_source", mydist)
+		dist_bots.put(id, mydist)
+
+		if(iteration==2*ROBOTS+2) {
+			iteration=0
+			find_median()
+			statef=stage_3
+		}	
+}
+
+function stage_1(){
+
+
+
+	#log("STAGE 1: ")
+	#log(corner_bots.get(string.concat("endwala", string.tostring(swarm_its))))
+	#log("ID")	
+	#log(id)
+
+	if(corner_bots.size()==0) {
+
+		find_endwala()
+		#log("checked here")
+
+	}
+	else{
+		mydist=10000
+
+		source=(corner_bots.get(string.concat("endwala", string.tostring(swarm_its))))
+		#log(source)
+		iteration=iteration+1
+		if(iteration%10==0) {
+
+			iteration=0
+			statef=start_stage_2
+			if(id==source) {
+				mydist=0
+			}
+
+		}
+	}
+}
+
+function find_endwala(){
+	
+		goto(-0.5, -0.5)
+		if(check_endwala()==1 and corner_bots.get(string.concat("endwala", string.tostring(swarm_its)))==nil ) {
+			corner_bots.put( string.concat("endwala", string.tostring(swarm_its)), id)
+			#log(string.concat("ADDED-- ", string.tostring(id)))
+			
+		}
+		
+	}
+
+function check_endwala() {
+		
+		q1=0
+		q2=0
+		q3=0
+		q4=0
+
+		neighbors.kin().foreach(function(rid, data) {
+								
+								var angle=data.azimuth
+
+								
+
+								if(angle>=0 and angle < (math.pi/2.0)) {
+									q1=1
+								}
+								else if(angle>=(math.pi/2.0) and angle<=math.pi ) {
+									q2=1
+								}
+								else if(angle<0 and angle>-(math.pi/2.0)) {
+									q4=1
+								}
+								else {
+									q3=1
+								}
+
+
+							}
+						)
+
+
+		#s=string.concat(string.tostring(q1), " ", string.tostring(q2), " ", string.tostring(q3), " ", string.tostring(q4), " ")
+
+		#debug.print(s)
+
+		if(q1+q2+q3+q4>2){
+			return -1
+		}
+		else if (q1+q2+q3+q4<2){
+			return 1
+		}
+		else {
+
+			if(q1+q3==2 or q2+q4==2) {
+				return -1
+			}
+			else {
+				return 1
+			}
+
+
+		}
+
+		
+
+
+}
+
+function rest(){
+	goto(0, 0)
+}
+
+function leave_and_rest() {
+	
+	#log(id)
+	#log("left")
+	s2.leave()
+	statef=rest
+
+}
+
+function init() {
+
+	add_listeners()
+	
+	s1=swarm.create(101)
+	s2=swarm.create(102)
+	s3=swarm.create(105)
+
+
+	s1.join()
+	s2.leave()
+	s3.leave()
+
+	iteration=0
+	iteration2=0
+	swarm_its=0
+
+	statef=init_stage_1
+
+
+}
+
+function init_stage_1() {
+	
+	if(swarm_its<SWARMS-1) {
+		swarm_its=swarm_its+1
+		dist_bots=stigmergy.create(DIST)
+		corner_bots=stigmergy.create(CBOTS)
+		statef=start_stage_1
+
+
+
+
+	}
+	else {
+		statef=rest
+	}
+
+}
+
+function start_stage_1() {
+	
+
+	s2.exec(leave_and_rest)
+	s1.exec(stage_1)
+	
+	
+}
+
+function start_stage_2(){
+	
+	s1.exec(stage_2)
+
+}
+
+
+
+function step() {
+
+	statef()
+
+}
