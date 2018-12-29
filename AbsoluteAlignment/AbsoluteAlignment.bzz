@@ -1,0 +1,247 @@
+include "/usr/local/share/buzz/include/vec2.bzz"
+include "/usr/local/share/buzz/include/string.bzz"
+
+
+ROBOTS=5
+ALIGN_STIG=101
+BOT_RADIUS=8.5
+ALPHA=1
+
+coords={.x0=0, .y0=0, .x1=40.83679, .y1=80.18016, .x2=328.3232, .y2=32.2332, 
+		.x3=443.4434, .y3=328, .x4=328.302, .y4=232.32}
+
+function magnitude(temp_r) {
+	
+	r0=2*BOT_RADIUS
+
+	return ALPHA/math.abs((temp_r - r0)^0.4) + ALPHA/math.abs((temp_r - r0)^0.5) + ALPHA/math.abs(temp_r - r0) + ALPHA/((temp_r - r0)^2)
+
+}
+
+function repulsion(r, theta){
+
+	var F=magnitude(r)
+
+	var net_rep_force= {.x= -1*F*math.cos(theta), .y= -1*F*math.sin(theta) }
+
+	return math.vec2.rotate(net_rep_force, 0)
+}
+
+function collision_avoidance() {
+	
+	var avoidance_vec=neighbors.reduce(function(rid, data, accum) {
+							
+							#log(data.distance)
+
+							if(data.distance<4*BOT_RADIUS) {
+							
+								accum=math.vec2.add(accum, repulsion(data.distance, data.azimuth))
+							}
+
+							return accum
+
+						}, {.x=0, .y=0})
+
+	
+	return avoidance_vec
+
+}
+
+function radians_interval(a) {
+    var temp = a
+    while ((temp>2.0*math.pi) or (temp<0.0)) {
+        if (temp > 2.0*math.pi) {
+            temp = temp - 2.0*math.pi
+        } else if (temp < 0.0){
+            temp = temp + 2.0*math.pi
+        }
+    }
+    if (temp > math.pi) {
+        temp = temp - 2.0*math.pi
+    }
+    return temp
+}
+
+
+function write(tab , row, column, p) {
+	tab[string.concat(string.tostring(row), "-", string.tostring(column) )]=p
+}
+
+function read(tab, row, column) {
+	return tab[string.concat(string.tostring(row), "-", string.tostring(column))]	
+}
+
+
+function add_listeners() {
+	
+	neighbors.listen(string.tostring(id), function(valueid, value, rid) {
+
+													var temp=string.split(value, "/")
+													write(data_table, rid, 3, string.tofloat(temp[0]))
+													write(data_table, rid, 4, string.tofloat(temp[1]))
+
+											})
+
+}
+
+
+function update_data() {
+
+	write(data_table, id, 1, 0)
+	write(data_table, id, 2, 0)
+
+	neighbors.foreach(function(rid, data) {
+
+					write(data_table, rid, 1, data.distance)
+					write(data_table, rid, 2, data.azimuth)
+
+
+					data_to_send=string.concat(string.tostring(data.distance), "/", string.tostring(data.azimuth))
+					neighbors.broadcast(string.tostring(rid), data_to_send)
+				}
+					)
+
+}
+
+function init() {
+
+	iteration=0
+	
+	data_table={}
+
+	aligned=stigmergy.create(ALIGN_STIG)
+	aligned.put(0, 0)
+		
+	add_listeners()
+	statef=keep_aligning
+
+	if(id==0) {
+		statef=wait
+	}
+
+}
+
+
+function step() {
+
+	statef()
+	
+}
+
+
+function keep_aligning() {
+	update_data()
+	if(aligned.get(id)==nil) {
+
+	#log("ID")
+	#log(id)
+
+			neighbors.foreach(function(rid, data) {
+
+							if(aligned.get(rid)!=nil and read(data_table, rid, 3)!=nil)
+							{
+
+								pivot_to_this=math.vec2.newp(read(data_table, rid, 3), read(data_table, rid, 4))
+								
+
+								pivot={.x=coords[string.concat("x", string.tostring(rid))], 
+											 .y=coords[string.concat("y", string.tostring(rid))]     }
+
+								target={.x=coords[string.concat("x", string.tostring(id))], 
+											 .y=coords[string.concat("y", string.tostring(id))]     }
+
+
+								pivot_to_target=math.vec2.new(target.x-pivot.x, target.y-pivot.y)
+								pivot_to_target=math.vec2.rotate(pivot_to_target, -1*aligned.get(rid))
+
+								
+
+								motion_coords={.x=pivot_to_target.x - pivot_to_this.x,
+											  .y=pivot_to_target.y - pivot_to_this.y}
+
+
+
+								angle2= read(data_table, rid, 2)-read(data_table, rid, 4) + math.pi
+								motion_coords= math.vec2.rotate(motion_coords, angle2)
+
+								if (math.vec2.length(motion_coords)<0.5) {
+
+									parent=rid
+									aligned.put(id, aligned.get(parent)+radians_interval(read(data_table, parent, 4)-read(data_table, parent, 2) + math.pi))
+									goto(0, 0)
+									statef=wait
+
+								}
+
+
+								motion_coords=math.vec2.add(motion_coords, 
+															math.vec2.scale(collision_avoidance(), 
+																			2*math.vec2.length(motion_coords))
+															)
+								goto(motion_coords.x, motion_coords.y)
+
+								#log("motion")
+								#log(motion_coords.x)
+								#log(motion_coords.y)
+
+
+
+								#log("RID")
+								#log(rid)
+								#log("PIVOT TO THIS")
+								#log(string.concat(string.tostring(pivot_to_this.x), ", ", string.tostring(pivot_to_this.y)))
+								#log("PIVOT TO TARGET")
+								#log(string.concat(string.tostring(pivot_to_target.x), ", ", string.tostring(pivot_to_target.y)))
+								#log(angle2)
+								#log("MOTION")
+								#log(string.concat(string.tostring(motion_coords.x), ", ", string.tostring(motion_coords.y)))
+
+								
+
+							}
+
+
+								})
+
+
+	}
+
+
+}
+
+function wait(){
+
+	if(aligned.size()<ROBOTS) {
+		goto(0, 0)
+		update_data()
+	}
+	else {
+		statef=action
+	}
+
+
+}
+
+function action() {
+	goto(0,0)
+	debug.print("LETS GO!")
+
+}
+
+function reset() {
+	
+	iteration=0
+	
+	data_table={}
+
+	aligned=stigmergy.create(ALIGN_STIG)
+	aligned.put(0, 0)
+		
+	add_listeners()
+	statef=keep_aligning
+
+	if(id==0) {
+		statef=wait
+	}
+}
+
