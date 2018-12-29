@@ -8,7 +8,7 @@ bzzc <file_name_with_extension>
 argos3 -c <argos_file_name_with_extension>
 
 #### To make changes to the number of bots: ####
-1. Buzz File: A constant NO_OF_ROBOTS is defined at the top
+1. Buzz File: A constant ROBOTS is defined at the top
 2. Argos File: Change the "quantity" attribute of the "entity" tag within the "distribute" tag (within the "arena" tag)
 
 Make sure the number of bots in both the files are equal.
