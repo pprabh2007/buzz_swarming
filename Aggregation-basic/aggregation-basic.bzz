@@ -1,0 +1,55 @@
+include "/usr/local/share/buzz/include/vec2.bzz"
+
+RADIUS=8.5
+E_NEIGH=5000
+TARGET_NEIGH=2*RADIUS
+
+
+function f_mag_neigh(rid, data) {
+
+	var mag= -(E_NEIGH / data.distance) * ((TARGET_NEIGH / data.distance)^4 - (TARGET_NEIGH / data.distance)^2)
+
+	return math.vec2.newp(mag, data.azimuth)	
+}
+
+function v_sum(rid, data, accum) {
+	return math.vec2.add(accum, data)
+}
+
+
+
+function aggregate() {
+
+		
+		
+		var f_neigh=neighbors.map(f_mag_neigh).reduce(v_sum, math.vec2.new(0.0, 0.0))
+		
+
+		var tot_count=neighbors.count()
+		if(tot_count>1) {
+			math.vec2.scale(f_neigh, 1.0/tot_count)
+
+		}	
+		
+		
+		goto(f_neigh.x, f_neigh.y)
+		
+}
+
+function init() {
+		
+}
+
+function step() {
+	aggregate()	
+}
+
+function reset() {
+	
+
+}
+
+function destroy() {
+	
+
+}
