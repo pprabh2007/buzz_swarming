@@ -1,0 +1,53 @@
+include "/usr/local/share/buzz/include/vec2.bzz"
+
+E_ANTINEIGH=50
+TARGET_ANTINEIGH=500
+
+
+function f_mag_antineigh(rid, data) {
+	var mag= -(E_ANTINEIGH / data.distance) * ((TARGET_ANTINEIGH / data.distance)^4 - (TARGET_ANTINEIGH / data.distance)^2)
+
+	return math.vec2.newp(mag, data.azimuth)	
+}
+
+function v_sum(rid, data, accum) {
+	return math.vec2.add(accum, data)
+}
+
+
+
+function disperse() {
+
+		
+		
+		var f_antineigh=neighbors.map(f_mag_antineigh).reduce(v_sum, math.vec2.new(0.0, 0.0))
+		
+
+		var tot_count=neighbors.count()
+		if(tot_count>1) {
+			math.vec2.scale(f_antineigh, 1.0/tot_count)
+
+		}	
+		
+		
+		goto(f_antineigh.x, f_antineigh.y)
+		
+}
+
+function init() {
+		
+}
+
+function step() {
+	disperse()	
+}
+
+function reset() {
+	
+
+}
+
+function destroy() {
+	
+
+}
