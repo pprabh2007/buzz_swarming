@@ -1,0 +1,35 @@
+function rtod(r) {
+   return (r*(180.0/math.pi))
+}
+
+function aggregate() {
+   
+  neighbors.foreach(function(rid ,data) {
+    					degrees = rtod(data.azimuth)
+    
+   						 if(degrees < 2  and degrees > (-2)) {
+      							set_wheels(10.0, -10.0) # Sets the velocity of the wheels
+    					}
+					    else {
+					      set_wheels(7.0, 10.0) 
+					    }
+					  
+					  })
+
+
+}
+
+
+function init() { 
+}
+
+
+function step() {
+  aggregate()
+}
+
+function reset() {
+}
+
+function destroy() {
+}
