@@ -1,5 +1,5 @@
 # buzz_swarming
-Contains basic swarm behaviors coded in Buzz programming language
+Contains basic swarm behaviors coded in Buzz programming language 
 
 #### Compiling the Buzz File: ####
 bzzc <file_name_with_extension>
